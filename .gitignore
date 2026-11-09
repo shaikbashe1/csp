@@ -1,6 +1,11 @@
 node_modules/
+functions/.env
+.firebase/
+*.log
 .env
 .pgdata/
-*.log
 *.err
-.vercel
+.admin.local
+emu.log
+firestore-debug.log
+ui-debug.log

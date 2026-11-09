@@ -158,7 +158,7 @@ function forgotView() {
 }
 
 function resetView() {
-  const token = new URLSearchParams(location.search).get('token') || '';
+  const token = new URLSearchParams(location.search).get('token') || new URLSearchParams(location.search).get('oobCode') || '';
   main.innerHTML = `<div class="auth-wrap card"><h1>Choose a new password</h1>
   <form id="f" novalidate><div class="alert error form-error" role="alert" hidden></div><input type="hidden" id="token" name="token" value="${esc(token)}">
   ${field('new_password', 'New password', { type: 'password', autocomplete: 'new-password' })}${field('confirm_new_password', 'Confirm new password', { type: 'password', autocomplete: 'new-password' })}
@@ -206,7 +206,7 @@ async function assessmentView(kind) {
     for (const q of qs) { const c = f.querySelector(`input[name=${q.id}]:checked`); if (!c) { box.textContent = 'Please answer every question.'; box.hidden = false; return; } answers[q.id] = Number(c.value); }
     const btn = f.querySelector('button[type=submit]'); btn.disabled = true;
     try {
-      const body = { answers }; if (f.village_id) body.village_id = Number(f.village_id.value);
+      const body = { answers }; if (f.village_id) body.village_id = f.village_id.value;
       const r = (await api('POST', `/api/assessments/${kind}`, body)).assessment;
       f.hidden = true;
       $('#res').innerHTML = `<div class="alert ok">Saved.</div><div class="score">${kind === 'healthcare' ? r.gap_score + ' / 100' : r.risk_level}</div><p class="hint">${kind === 'healthcare' ? 'Healthcare gap score — higher means a larger gap.' : 'Antibiotic risk level (score ' + r.risk_score + ' / 100).'}</p><a class="btn" data-link href="/dashboard">Back to dashboard</a>`;
@@ -248,7 +248,7 @@ async function fieldView() {
   ${field('households', 'Households surveyed', { type: 'number' })}<div><label for="notes">Notes (optional)</label><textarea id="notes" name="notes" rows="3" maxlength="2000"></textarea></div>
   <div class="form-actions"><button class="btn" type="submit">Save survey</button></div></form></div>` : ''}
   <h2>My recent surveys</h2>${surveys.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Village</th><th>Households</th><th>Notes</th></tr></thead><tbody>${surveys.map(s => `<tr><td>${fmt(s.created_at)}</td><td>${esc(s.village)}</td><td>${s.households}</td><td>${esc(s.notes || '')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card"><p class="hint">None yet.</p></div>'}`;
-  const sf = $('#sf'); if (sf) bindForm(sf, async d => { await api('POST', '/api/field/surveys', { village_id: Number(d.village_id), households: Number(d.households), notes: d.notes || undefined }); toast('Survey saved'); render(); });
+  const sf = $('#sf'); if (sf) bindForm(sf, async d => { await api('POST', '/api/field/surveys', { village_id: d.village_id, households: Number(d.households), notes: d.notes || undefined }); toast('Survey saved'); render(); });
 }
 
 // ---- research ----
@@ -337,7 +337,7 @@ async function adminUsersView() {
         const { villages } = await api('GET', '/api/admin/villages');
         const pick = prompt('Enter village IDs to assign (comma-separated):\n' + villages.map(v => `${v.id} = ${v.name}`).join('\n'));
         if (pick === null) return;
-        await api('PUT', `/api/admin/users/${b.dataset.assign}/villages`, { village_ids: pick.split(',').map(s => parseInt(s)).filter(Number.isInteger) }); toast('Villages assigned');
+        await api('PUT', `/api/admin/users/${b.dataset.assign}/villages`, { village_ids: pick.split(',').map(s => s.trim()).filter(Boolean) }); toast('Villages assigned');
       }
     } catch (err) { toast(err.message); load(); }
   };
@@ -369,7 +369,7 @@ async function adminFacilitiesView() {
   <div class="row">${field('district', 'District')}${field('state', 'State')}</div><div class="row">${field('latitude', 'Latitude', { type: 'number', required: false })}${field('longitude', 'Longitude', { type: 'number', required: false })}</div>${field('phone', 'Phone', { required: false })}
   <div class="form-actions"><button class="btn" type="submit">Add facility</button></div></form></div>`;
   const num = v => (v === '' || v == null ? undefined : Number(v));
-  bindForm($('#ff'), async d => { await api('POST', '/api/admin/facilities', { name: d.name, type: d.type, district: d.district, state: d.state, village_id: num(d.village_id), latitude: num(d.latitude), longitude: num(d.longitude), phone: d.phone || undefined }); toast('Facility added'); render(); });
+  bindForm($('#ff'), async d => { await api('POST', '/api/admin/facilities', { name: d.name, type: d.type, district: d.district, state: d.state, village_id: d.village_id || undefined, latitude: num(d.latitude), longitude: num(d.longitude), phone: d.phone || undefined }); toast('Facility added'); render(); });
   main.addEventListener('click', async e => { const b = e.target.closest('[data-del]'); if (!b || !confirm(`Delete facility "${b.dataset.name}"?`)) return; await api('DELETE', '/api/admin/facilities/' + b.dataset.del); render(); }, { once: true });
 }
 
